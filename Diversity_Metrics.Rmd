@@ -15,7 +15,7 @@ output:
     keep_tex: no
     slide_level: 2
   ioslides_presentation:
-    logo: EcoFoG2017.png
+    logo: images/EcoFoG2017.png
   slidy_presentation: default
 ---
 ```{r setup, include=FALSE}
