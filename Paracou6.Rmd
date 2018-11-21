@@ -1,0 +1,339 @@
+---
+title: "Diversité de la Parcelle 6 de Paracou"
+author:
+  - name: Eric Marcon
+abstract: >
+  TD du cours sur les mesures de la biodiversité
+date: "`r format(Sys.time(), '%d %B %Y')`"
+pdftoc: no
+preamble: >
+  \usepackage{textcomp}
+  \DeclareUnicodeCharacter{B0}{\textdegree}
+  \hyphenation{bio-di-ver-si-ty sap-lings}
+bibliography: entropie.bib
+lang: french # english
+always_allow_html: yes
+output:
+  bookdown::pdf_book:
+    base_format: EcoFoG::memo
+    keep_tex: yes
+  bookdown::gitbook:
+    config:
+      download: null
+  bookdown::word_document2: default
+  bookdown::html_document2:
+    theme: sandstone
+    toc: yes
+    toc_float: yes
+---
+
+```{r setup, include=FALSE}
+### knitr and R options (packages, ...)
+knitr::opts_chunk$set(cache = TRUE, echo = TRUE, tidy=FALSE, tidy.opts=list(blank=FALSE, width.cutoff=50), out.width='.8\\maxwidth', fig.align='center')
+options(width=50)
+# Installation des packages si nécessaire et chargement
+Library <- function(Packages) {
+  InstallAndLoad <- function(Package) {
+    if (!Package %in% installed.packages()[, 1]) {install.packages(Package, repos="https://cran.rstudio.com/")}
+    require(Package, character.only = TRUE)
+  }
+  invisible(sapply(Packages, InstallAndLoad))
+}
+# Ajouter les packages nécessaires ici
+Library(c("devtools", "tidyverse", "entropart", "mice", "cluster", "secret", "openssl"))
+# Tidyverse default options
+library("magrittr")
+# Set ggplotting to bw plot default, but with transparent background elements.  
+theme_set(theme_bw(base_size=12))
+theme_update(panel.background = element_rect(fill = "transparent", colour = NA),
+             plot.background = element_rect(fill = "transparent", colour = NA))
+knitr::opts_chunk$set(dev.args=list(bg="transparent"))
+```
+
+
+# Données
+
+## Lecture de la base de Paracou
+
+Inventaire de 2016. La lecture de la base de Paracou est possible sur le réseau local de Kourou à condition d'avoir les droits suffisants.
+
+```{r, eval=FALSE}
+devtools::install_github("EcoFoG/EcoFoG")
+library("EcoFoG")
+Paracou2df("CensusYear=2016") %>% # Année 2016
+  as.tibble %>% 
+  # Arbres vivants seulement
+  filter(CodeAlive == TRUE) %>% 
+  # Filtrage des colonnes utiles
+  select(Plot, SubPlot:Yfield, -Projet, -Protocole, Family:Species, CircCorr) %>%
+  # Création d'une colonne contenant "Genre espèce".
+  unite(col = spName, Genus, Species, remove = FALSE) -> Paracou
+```
+
+Une copie des données est stockée localement.
+Une clé est nécessaire pour lire les données qui ne sont pas publiques.
+
+```{r}
+library("secret")
+library("openssl")
+# Requires a private key to read the data
+Paracou <- get_secret("Paracou", key = read_key("Cours-Biodiversite_rsa"), vault = "vault")
+```
+
+
+## Carte
+
+Carte des wapas de la P6.
+
+```{r, out.width='70%'}
+Paracou %>% filter(Plot==6 & Genus=="Eperua") %>%
+  ggplot() + 
+  geom_point(aes(x = Xfield, y = Yfield, size = CircCorr, color=Species)) + 
+  coord_fixed() + scale_color_brewer(palette = "Set1") +
+  labs(x="X", y="Y", caption="Paracou, parcelle 6", size="Circonférence", color="Espèce")
+```
+
+# Diversité neutre
+
+## Préparation des données
+
+Résumé des données à un nombre d'arbres par espèce et par parcelle
+
+```{r}
+# Tout Paracou
+Paracou %>% 
+  group_by(Plot, spName) %>% 
+  summarize(Abondance = length(idTree)) ->
+  Abondances
+# Parcelle 6
+Abondances %>% filter(Plot==6) -> AbondancesP6
+# Fabrication d'un vecteur nommé
+AbdP6 <- AbondancesP6$Abondance
+names(AbdP6) <- AbondancesP6$spName
+```
+
+## Richesse P6
+
+Nombre d'espèces observées
+```{r}
+library("entropart")
+(AbdP6 %>% Richness(Correction="None") -> Sobserve)
+```
+
+Estimation et validation
+```{r}
+(AbdP6 %>% Richness(Correction="Jackknife") -> Sestime)
+```
+
+## Complétude
+
+Taux de complétude entre 50\% et 74\% ?
+```{r}
+Sobserve/Sestime
+```
+
+Comparaison avec Chao1
+```{r, tidy=FALSE}
+AbdP6 %>% Richness(Correction="Chao1")
+```
+
+## Sous-estimation
+
+Comparaison avec Jacknife1
+```{r}
+(Singletons <- sum(AbdP6==1))
+Sobserve + Singletons
+```
+
+## Intervalle de confiance
+
+Validation de l'estimateur Jacknife 2.
+
+Incertitude sur l'estimation : package SPECIES. Les données sont les fréquences des abondances.
+
+```{r}
+AbondancesP6 %>% 
+  group_by(Abondance) %>% summarise(Frequency=length(spName)) -> P6AbdFreqCount
+library("SPECIES")
+P6AbdFreqCount %>% as.matrix %>% jackknife(k=2) %$% CI
+```
+
+## Taux de couverture
+
+Estimateur de Zhang et Huang :
+```{r}
+Coverage(AbdP6)
+```
+A comparer avec l'estimateur de Turing :
+```{r}
+Coverage(AbdP6, Estimator="Turing")
+```
+
+L'estimation rapide par le nombre de singletons (estimateur de Turing) est généralement suffisante:
+```{r}
+1-sum(AbdP6==1)/sum(AbdP6)
+```
+
+
+## Profil de diversité
+
+Utilisation de l'estimateur Unveiled-Jacknife:
+```{r}
+CommunityProfile(Diversity, AbdP6, Correction="UnveilJ") %>% 
+  autoplot
+```
+
+
+# Diversité $\beta$
+
+## Création d'une métacommunauté
+
+```{r}
+Abondances %>% 
+  filter(Plot %in% c(1, 6, 11, 13:15)) %>% 
+  spread(key = Plot, value = Abondance, fill=0) %>% 
+  as.data.frame ->
+  dfTemoins
+# Préparation d'une metacommunauté
+rownames(dfTemoins) <- dfTemoins$spName
+dfTemoins <- dfTemoins[, -1]
+colnames(dfTemoins) <- paste("P", colnames(dfTemoins), sep="")
+library("entropart")
+ParacouMC <- MetaCommunity(dfTemoins, Weights = colSums(dfTemoins))
+```
+
+## Partition de la diversité
+
+```{r}
+dp <- DivProfile(, ParacouMC, Biased = FALSE, Correction="UnveilJ")
+autoplot(dp)
+```
+
+
+# Diversité phylogénétique
+
+## Création d'une phylogénie
+
+Phylogénie à partir de la taxonomie.
+```{r, tidy=FALSE, message=FALSE}
+library("ape")
+Paracou %>%
+  filter(Plot == 6) %>% 
+  select(Family:Species) %>% 
+  unite(col=spName, Genus, Species, remove=FALSE) %>% 
+  mutate_if(is.character, as.factor)  %>% 
+  {as.phylo(~Family/Genus/spName, data=., collapse=FALSE)} %>% 
+  compute.brlen(method=1) %>% 
+  collapse.singles %>% 
+  multi2di %T>% 
+  plot(show.tip.label = FALSE) -> p6Phylo
+```
+
+
+## Profil de diversité
+
+Utilisation de l'estimateur Unveiled-Jacknife:
+```{r, out.width='70%', cache=TRUE}
+dp <- CommunityProfile(function(Abd, q, CheckArguments) 
+  PhyloDiversity(Abd, q, Correction="UnveilJ", Tree=p6Phylo)$Total,
+  AbdP6)
+autoplot(dp)
+```
+
+# Diversité fonctionnelle
+
+## Création d'une base de traits
+
+Traits individuels (Bridge) et par espèces (Mariwenn).
+```{r, message=FALSE}
+read_csv(file="data/ind_traits_MICE.csv") %>% 
+  select(Family:Species, plot_code, sapwood_dens, log_SLA) %>% 
+  unite(col = spName, Genus, Species, remove = FALSE) %>% 
+  group_by(Family, Genus, spName) %>% 
+  summarize(DensiteBois = median(sapwood_dens), logSLA = median(log_SLA)) %>% 
+  ungroup -> 
+  TraitsBoisFeuilles
+
+read_csv2(file="data/DataLifeTraits.csv") %>% 
+  select(Name, Hauteur, Masse) %>% 
+  rename(spName = Name) %>% 
+  mutate(MasseGraine = ordered(Masse)) %>% 
+  select(-Masse) ->
+  TraitsVie
+
+TraitsBoisFeuilles %>% 
+  left_join(TraitsVie)->
+  Traits
+```
+
+## Ajout des espèces manquantes
+
+```{r}
+EspecesManquantes <- setdiff(AbondancesP6$spName, Traits$spName)
+# Préparation des lignes supplémentaires
+Paracou %>% 
+  filter(spName %in% EspecesManquantes) %>% 
+  select(Family:Genus) %>% 
+  distinct ->
+  LignesManquantes
+Traits %<>% 
+  bind_rows(LignesManquantes) %>% 
+  mutate(Family=as.factor(Family), Genus=as.factor(Genus))
+```
+
+Proportion des données de traits manquantes, pondérées par le nombre d'individus.
+
+```{r}
+PartTraitsManquants <- data.frame(Traitsmanquants=apply(Traits, 1, function(x) sum(is.na(x))/(length(x)-3)))
+Traits %>% 
+  bind_cols(PartTraitsManquants) %>% 
+  inner_join(AbondancesP6) -> 
+  TraitsP6
+sum(TraitsP6$Traitsmanquants * TraitsP6$Abondance)/sum(TraitsP6$Abondance)
+```
+
+
+## Remplissage des valeurs manquantes
+
+
+```{r}
+# Remplissage des valeurs manquantes (long calcul)
+library("mice")
+Traits %>% 
+  mice(print=FALSE) %>% 
+  complete ->
+  Traits
+```
+
+## Création d'une matrice de distance
+
+Distance de Gower entre les espèces.
+
+```{r}
+library("cluster")
+rownames(Traits) <- Traits$spName
+Traits %>% 
+  select(-(Family:spName)) %>% 
+  daisy(metric="gower") ->
+  DistEspeces
+
+# Distribution des distances
+ggplot(data=data.frame(Distance=as.numeric(DistEspeces))) +
+  geom_density(aes(x=Distance))
+
+# Dissimilarités
+DistEspeces %<>% as.matrix
+Z <- 1 - DistEspeces/max(DistEspeces)
+```
+
+## Profil de diversité
+
+Diversité de Leinster et Cobbold.
+```{r}
+# Suppression des lignes et colonnes inutiles de Z
+Z <- Z[names(AbdP6), names(AbdP6)]
+# Profil de diversité
+CommunityProfile(Dqz, AbdP6, Z=Z) %>% 
+  autoplot
+```
+
