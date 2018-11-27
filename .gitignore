@@ -43,3 +43,5 @@
 
 # Private keys
 *_rsa
+# Private data
+/data/Paracou.RData
