@@ -28,7 +28,8 @@ InstallPackages <- function(Packages) {
   sapply(Packages, function(Package) 
     if (!Package %in% installed.packages()[, 1]) install.packages(Package, repos="https://cran.rstudio.com/"))
 }
-InstallPackages(c("tidyverse", "entropart", "secret", "openssl"))
+InstallPackages(c("tidyverse", "formatR", "remotes", "entropart"))
+remotes::install_github("EcoFoG/EcoFoG", build_vignettes = TRUE)
 # Tidiverse default options
 library("tidyverse")
 # Set ggplotting to bw plot default, but with transparent background elements.  
@@ -266,26 +267,29 @@ Rule of thumb:
 Use Paracou forest tree inventory (2016).
 
 ```{r}
-library("secret")
-library("openssl")
-# Requires a private key to read the data
-Paracou <- get_secret("Paracou", key = read_key("Cours-Biodiversite_rsa"), vault = "vault")
+library("EcoFoG")
+Paracou2df("Plot=6 AND CensusYear=2016") %>% # Année 2016
+  # Arbres vivants seulement
+  filter(CodeAlive == TRUE) %>% 
+  # Filtrage des colonnes utiles
+  select(Plot, SubPlot:Yfield, -Project, -Protocole, Family:Species, CircCorr) %>%
+  # Création d'une colonne contenant "Genre espèce".
+  unite(col = spName, Genus, Species, remove = FALSE) -> Paracou
 ```
 
 Summarize the list of trees into abundance table.
 First prepare a species name field.
 
 ```{r}
-Paracou %>% 
+Paracou %>%
   unite(col = spName, Genus, Species, remove = FALSE) %>% 
-  group_by(Plot, spName) %>% 
+  group_by(SubPlot, spName) %>% 
   summarize(Abundance = length(Species)) ->
-  Abundances
+  AbundancesP6
 ```
 
 Prepare a named vector for plot 6 data.
 ```{r}
-Abundances %>% filter(Plot==6) -> AbundancesP6
 AbdP6 <- AbundancesP6$Abundance
 names(AbdP6) <- AbundancesP6$spName
 ```
@@ -335,15 +339,12 @@ CommunityProfile(Diversity, AbdP6, Correction="UnveilJ") %>%
 Defined by @Whittaker1972:
 
 - $\alpha$: Average richness of a set of habitats, i.e. $\bar{S}$ species per habitat.
-
 - $\gamma$: Richness of the assemblage, i.e. $S$ species
-
 - $\beta$: The ratio $\gamma / \alpha$, i.e. a number of habitats.
 
 Extensions to:
 
 - All orders of diversity.
-
 - Any embedded spatial scales.
 
 
@@ -354,7 +355,6 @@ After @Lande1996: additive partitioning of diversity.
 Resolution:
 
 - $\beta$ diversity = the ratio $\gamma / \alpha$.
-
 - $\beta$ entropy = the difference $\gamma - \alpha$.
 
 Exponentials multiply, logs sum...
@@ -409,11 +409,11 @@ $\rightarrow$ Differentiation Diversity.
 
 ## Data
 
-Formatting the data as a dataframe, species in lines, plots in columns.
+Formatting the data as a dataframe, species in lines, subplots in columns.
 
 ```{r}
-Abundances %>% 
-  spread(key = Plot, value = Abundance, fill=0) %>% 
+AbundancesP6 %>% 
+  spread(key = SubPlot, value = Abundance, fill=0) %>% 
   as.data.frame -> df
 # Name rows and columns
 rownames(df) <- df$spName

@@ -40,7 +40,7 @@ Library <- function(Packages) {
   invisible(sapply(Packages, InstallAndLoad))
 }
 # Ajouter les packages nécessaires ici
-Library(c("devtools", "tidyverse", "entropart", "mice", "cluster", "secret", "openssl"))
+Library(c("remotes", "tidyverse", "entropart", "mice", "cluster", "secret", "openssl"))
 # Tidyverse default options
 library("magrittr")
 # Set ggplotting to bw plot default, but with transparent background elements.  
@@ -55,29 +55,20 @@ knitr::opts_chunk$set(dev.args=list(bg="transparent"))
 
 ## Lecture de la base de Paracou
 
-Inventaire de 2016. La lecture de la base de Paracou est possible sur le réseau local de Kourou à condition d'avoir les droits suffisants.
+Inventaire de 2016. 
+La lecture de la base de Paracou est possible sur le réseau local de Kourou à condition d'avoir les droits suffisants.
+Si ce n'est pas le cas, les données de la parcelle 6 en 2016 sont retournées par défaut.
 
 ```{r, eval=FALSE}
-devtools::install_github("EcoFoG/EcoFoG")
+remotes::install_github("EcoFoG/EcoFoG", build_vignettes = TRUE)
 library("EcoFoG")
-Paracou2df("CensusYear=2016") %>% # Année 2016
-  as.tibble %>% 
+Paracou2df("Plot=6 AND CensusYear=2016") %>% # Année 2016
   # Arbres vivants seulement
   filter(CodeAlive == TRUE) %>% 
   # Filtrage des colonnes utiles
-  select(Plot, SubPlot:Yfield, -Projet, -Protocole, Family:Species, CircCorr) %>%
+  select(Plot, SubPlot:Yfield, -Project, -Protocole, Family:Species, CircCorr) %>%
   # Création d'une colonne contenant "Genre espèce".
   unite(col = spName, Genus, Species, remove = FALSE) -> Paracou
-```
-
-Une copie des données est stockée localement.
-Une clé est nécessaire pour lire les données qui ne sont pas publiques.
-
-```{r}
-library("secret")
-library("openssl")
-# Requires a private key to read the data
-Paracou <- get_secret("Paracou", key = read_key("Cours-Biodiversite_rsa"), vault = "vault")
 ```
 
 
@@ -100,13 +91,11 @@ Paracou %>% filter(Plot==6 & Genus=="Eperua") %>%
 Résumé des données à un nombre d'arbres par espèce et par parcelle
 
 ```{r}
-# Tout Paracou
+# Comptage
 Paracou %>% 
-  group_by(Plot, spName) %>% 
+  group_by(spName) %>% 
   summarize(Abondance = length(idTree)) ->
-  Abondances
-# Parcelle 6
-Abondances %>% filter(Plot==6) -> AbondancesP6
+  AbondancesP6
 # Fabrication d'un vecteur nommé
 AbdP6 <- AbondancesP6$Abondance
 names(AbdP6) <- AbondancesP6$spName
@@ -188,18 +177,21 @@ CommunityProfile(Diversity, AbdP6, Correction="UnveilJ") %>%
 
 ## Création d'une métacommunauté
 
+Chaque carré de la parcelle 6 est considéré comme une communauté locale issue de la méta-communauté constituéé par la parcelle entière.
+
 ```{r}
-Abondances %>% 
-  filter(Plot %in% c(1, 6, 11, 13:15)) %>% 
-  spread(key = Plot, value = Abondance, fill=0) %>% 
+Paracou %>% 
+  group_by(SubPlot, spName) %>% 
+  summarize(Abondance = length(idTree)) %>% 
+  spread(key = SubPlot, value = Abondance, fill=0) %>% 
   as.data.frame ->
-  dfTemoins
+  dfP6
 # Préparation d'une metacommunauté
-rownames(dfTemoins) <- dfTemoins$spName
-dfTemoins <- dfTemoins[, -1]
-colnames(dfTemoins) <- paste("P", colnames(dfTemoins), sep="")
+rownames(dfP6) <- dfP6$spName
+dfP6 <- dfP6[, -1]
+colnames(dfP6) <- paste("C", colnames(dfP6), sep="")
 library("entropart")
-ParacouMC <- MetaCommunity(dfTemoins, Weights = colSums(dfTemoins))
+ParacouMC <- MetaCommunity(dfP6, Weights = colSums(dfP6))
 ```
 
 ## Partition de la diversité
@@ -218,7 +210,6 @@ Phylogénie à partir de la taxonomie.
 ```{r, tidy=FALSE, message=FALSE}
 library("ape")
 Paracou %>%
-  filter(Plot == 6) %>% 
   select(Family:Species) %>% 
   unite(col=spName, Genus, Species, remove=FALSE) %>% 
   mutate_if(is.character, as.factor)  %>% 
