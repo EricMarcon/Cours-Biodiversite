@@ -11,20 +11,21 @@ preamble: >
   \DeclareUnicodeCharacter{B0}{\textdegree}
   \hyphenation{bio-di-ver-si-ty sap-lings}
 bibliography: entropie.bib
-lang: french # english
+lang: fr-FR # en-US
+babel: french # english
 always_allow_html: yes
 output:
-  bookdown::pdf_book:
-    base_format: EcoFoG::memo
-    keep_tex: yes
-  bookdown::gitbook:
-    config:
-      download: null
-  bookdown::word_document2: default
   bookdown::html_document2:
     theme: sandstone
     toc: yes
     toc_float: yes
+  bookdown::gitbook:
+    config:
+      download: null
+  bookdown::word_document2: default
+  bookdown::pdf_book:
+    base_format: EcoFoG::memo
+    keep_tex: yes
 ---
 
 ```{r setup, include=FALSE}
@@ -40,7 +41,8 @@ Library <- function(Packages) {
   invisible(sapply(Packages, InstallAndLoad))
 }
 # Ajouter les packages nécessaires ici
-Library(c("remotes", "tidyverse", "entropart", "mice", "cluster", "secret", "openssl"))
+Library(c("remotes", "tidyverse", "entropart", "mice", "cluster"))
+remotes::install_github("EcoFoG/EcoFoG")
 # Tidyverse default options
 library("magrittr")
 # Set ggplotting to bw plot default, but with transparent background elements.  
@@ -59,7 +61,7 @@ Inventaire de 2016.
 La lecture de la base de Paracou est possible sur le réseau local de Kourou à condition d'avoir les droits suffisants.
 Si ce n'est pas le cas, les données de la parcelle 6 en 2016 sont retournées par défaut.
 
-```{r, eval=FALSE}
+```{r}
 remotes::install_github("EcoFoG/EcoFoG", build_vignettes = TRUE)
 library("EcoFoG")
 Paracou2df("Plot=6 AND CensusYear=2016") %>% # Année 2016
@@ -77,7 +79,7 @@ Paracou2df("Plot=6 AND CensusYear=2016") %>% # Année 2016
 Carte des wapas de la P6.
 
 ```{r, out.width='70%'}
-Paracou %>% filter(Plot==6 & Genus=="Eperua") %>%
+Paracou %>% filter(Genus=="Eperua") %>%
   ggplot() + 
   geom_point(aes(x = Xfield, y = Yfield, size = CircCorr, color=Species)) + 
   coord_fixed() + scale_color_brewer(palette = "Set1") +

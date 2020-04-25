@@ -29,7 +29,7 @@ InstallPackages <- function(Packages) {
     if (!Package %in% installed.packages()[, 1]) install.packages(Package, repos="https://cran.rstudio.com/"))
 }
 InstallPackages(c("tidyverse", "formatR", "remotes", "entropart"))
-remotes::install_github("EcoFoG/EcoFoG", build_vignettes = TRUE)
+remotes::install_github("EcoFoG/EcoFoG")
 # Tidiverse default options
 library("tidyverse")
 # Set ggplotting to bw plot default, but with transparent background elements.  
