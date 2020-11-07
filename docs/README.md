@@ -1,9 +1,9 @@
-# Mesure de la Biodiversité
+# Biodiversty Metrics - 8th DNA metabarcoding Spring School
 
-Ceci est le support du cours Mesure de la Biodiversité du [master EFT](http://eft.ecofog/gf).
+These are the slides of the Biodiversty Metrics course of the [8th DNA metabarcoding Spring School](http://metabarcoding.org/spip.php?article88) in French Guiana.
 
-[Voir le support](https://EricMarcon.github.io/Cours-Biodiversite/Diversity_Metrics.html) ou le [télécharger](https://EricMarcon.github.io/Cours-Biodiversite/Diversity_Metrics.pdf)
+[Read the slides](https://EricMarcon.github.io/MBschool-8/Diversity_Metrics.html) or [download them](https://EricMarcon.github.io/MBschool-8/Diversity_Metrics.pdf)
 
-La diversité de la parcelle 6 de Paracou est étudiée en TD.
+The diversity of plot 6 of the [Paracou](https://paracou.corad.fr) forest is studied.
 
-[Voir le support](https://EricMarcon.github.io/Cours-Biodiversite/Paracou6.html) ou le [télécharger](https://EricMarcon.github.io/Cours-Biodiversite/Paracou6.pdf)
+[Read the document](https://EricMarcon.github.io/MBschool-8/Paracou6.html) (in French) or [download it](https://EricMarcon.github.io/MBschool-8/Paracou6.pdf)

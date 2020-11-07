@@ -16,7 +16,6 @@ output:
     slide_level: 2
   ioslides_presentation:
     logo: images/EcoFoG2017.png
-  slidy_presentation: default
 ---
 ```{r setup, include=FALSE}
 # tidy R chunks.
